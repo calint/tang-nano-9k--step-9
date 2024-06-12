@@ -99,7 +99,7 @@ module Top (
   wire cache_busy;
 
   Cache #(
-      .LINE_IX_BITWIDTH(6),  // 2 KB cache (2 ^ 6 * 32 B)
+      .LINE_IX_BITWIDTH(5),  // 1 KB cache (2 ^ 5 * 32 B)
       .RAM_DEPTH_BITWIDTH(BURST_RAM_DEPTH_BITWIDTH),
       .RAM_ADDRESSING_MODE(0)  // addressing 8 bit words
   ) cache (
