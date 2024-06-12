@@ -121,7 +121,7 @@ module Top (
   // ----------------------------------------------------------
   localparam STARTUP_WAIT = 1_000_000;
   // localparam FLASH_TRANSFER_BYTES_NUM = 32'h0020_0000;
-  localparam FLASH_TRANSFER_BYTES_NUM = 32'h0000_0004;
+  localparam FLASH_TRANSFER_BYTES_NUM = 32'h0010_0000;
 
   reg [31:0] cache_address_next;
   reg [7:0] current_byte_out;
@@ -271,12 +271,12 @@ module Top (
 
         STATE_CACHE_TEST_2: begin
           if (cache_data_out_ready) begin
-            led[4:0] <= ~cache_data_out;
-            // if (cache_data_out == 32'h34_33_32_31) begin
-            //   led[5] <= 1'b0;
-            // end else begin
-            //   led[0] <= 1'b0;
-            // end
+            // led[4:0] <= ~cache_data_out;
+            if (cache_data_out == 32'h34_31_32_33) begin
+              led[4:0] <= 5'b0_0000;
+            end else begin
+              led[0] <= 1'b0;
+            end
             state <= STATE_CACHE_TEST_FAIL;
           end
         end
