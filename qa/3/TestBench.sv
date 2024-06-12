@@ -6,7 +6,7 @@
 
 module TestBench;
 
-  localparam BURST_RAM_DEPTH_BITWIDTH = 10;
+  localparam RAM_DEPTH_BITWIDTH = 10;
 
   reg sys_rst_n = 0;
   reg clk = 1;
@@ -27,7 +27,7 @@ module TestBench;
 
   wire br_cmd;
   wire br_cmd_en;
-  wire [BURST_RAM_DEPTH_BITWIDTH-1:0] br_addr;
+  wire [RAM_DEPTH_BITWIDTH-1:0] br_addr;
   wire [63:0] br_wr_data;
   wire [7:0] br_data_mask;
   wire [63:0] br_rd_data;
@@ -37,7 +37,7 @@ module TestBench;
 
   BurstRAM #(
       .DATA_FILE(""),  // initial RAM content
-      .DEPTH_BITWIDTH(BURST_RAM_DEPTH_BITWIDTH),  // 2 ^ 4 * 8 B entries
+      .DEPTH_BITWIDTH(RAM_DEPTH_BITWIDTH),  // 2 ^ 4 * 8 B entries
       .BURST_COUNT(4),  // 4 * 64 bit data per burst
       .CYCLES_BEFORE_DATA_VALID(6)
   ) burst_ram (
@@ -64,8 +64,8 @@ module TestBench;
 
   Cache #(
       .LINE_IX_BITWIDTH(2),
-      .BURST_RAM_DEPTH_BITWIDTH(BURST_RAM_DEPTH_BITWIDTH),
-      .RAM_ADDRESSING(3)  // 64 bit words
+      .RAM_DEPTH_BITWIDTH(RAM_DEPTH_BITWIDTH),
+      .RAM_ADDRESSING_MODE(3)  // 64 bit words
   ) cache (
       .clk(clkout),
       .rst(!sys_rst_n || !lock || !br_init_calib),
@@ -91,7 +91,7 @@ module TestBench;
     $dumpvars(0, TestBench);
 
     address <= 0;
-    address_next <= 0;
+    address_next <= 4;
 
     #clk_tk;
     sys_rst_n <= 1;
@@ -100,8 +100,8 @@ module TestBench;
     while (br_busy || !lock) #clk_tk;
 
     // write
-    for (int i = 0; i < 2 ** BURST_RAM_DEPTH_BITWIDTH; i = i + 1) begin
-      $display("address: %h", address);
+    for (int i = 0; i < 2 ** RAM_DEPTH_BITWIDTH; i = i + 1) begin
+      // $display("address: %h", address);
       while (busy) #clk_tk;
       address <= address_next;
       address_next <= address_next + 4;

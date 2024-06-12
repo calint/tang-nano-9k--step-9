@@ -6,7 +6,7 @@
 `timescale 100ps / 100ps
 //
 `default_nettype none
-`define DBG
+// `define DBG
 // `define INFO
 
 module Cache #(
@@ -14,7 +14,7 @@ module Cache #(
     parameter LINE_IX_BITWIDTH = 8,
 
     // bits in the address
-    parameter BURST_RAM_DEPTH_BITWIDTH = 21,
+    parameter RAM_DEPTH_BITWIDTH = 21,
 
     // the clock cycles delay between commands
     // see: IPUG943-1.2E Gowin PSRAM Memory Interface HS & HS 2CH IP
@@ -22,7 +22,7 @@ module Cache #(
     parameter COMMAND_DELAY_INTERVAL = 20,
     // note: 1 less than spec because the counter starts 1 cycle late (13)
 
-    parameter RAM_ADDRESSING = 3
+    parameter RAM_ADDRESSING_MODE = 0
     // note: 3: RAM has 64 bit words
     //       2: RAM has 32 bit words
     //       1: RAM has 16 bit words
@@ -44,14 +44,12 @@ module Cache #(
     // asserted when busy reading / writing cache lines
     output wire busy,
 
-    output reg led,
-
     // burst RAM wiring; prefix 'br_'
     output reg br_cmd,  // 0: read, 1: write
     output reg br_cmd_en,  // 1: cmd and addr is valid
-    output reg [BURST_RAM_DEPTH_BITWIDTH-1:0] br_addr,  // 8 bytes word
+    output reg [RAM_DEPTH_BITWIDTH-1:0] br_addr,  // 8 bytes word
     output reg [63:0] br_wr_data,  // data to write
-    output reg [7:0] br_data_mask,  // not implemented (same as 0 in IP component)
+    output wire [7:0] br_data_mask,  // not implemented (same as 0 in IP component)
     input wire [63:0] br_rd_data,  // read data
     input wire br_rd_data_valid  // rd_data is valid
 );
@@ -73,7 +71,7 @@ module Cache #(
   localparam TAG_BITWIDTH = 32 - LINE_IX_BITWIDTH - COLUMN_IX_BITWIDTH - ZEROS_BITWIDTH;
   localparam LINE_VALID_BIT = TAG_BITWIDTH;
   localparam LINE_DIRTY_BIT = TAG_BITWIDTH + 1;
-  localparam LINE_TO_RAM_ADDRESS_LEFT_SHIFT = COLUMN_IX_BITWIDTH + ZEROS_BITWIDTH - RAM_ADDRESSING;
+  localparam LINE_TO_RAM_ADDRESS_LEFT_SHIFT = COLUMN_IX_BITWIDTH + ZEROS_BITWIDTH - RAM_ADDRESSING_MODE;
 
   // wires dividing the address into components
   // |tag|line| col |00| address
@@ -96,21 +94,23 @@ module Cache #(
     -:TAG_BITWIDTH
   ];
 
-  // starting address in burst RAM for the cache line from the requested address
-  wire [BURST_RAM_DEPTH_BITWIDTH-1:0] burst_line_address = {
+  // starting address of cache line in RAM for current address
+  wire [RAM_DEPTH_BITWIDTH-1:0] burst_line_address = {
     address[31:COLUMN_IX_BITWIDTH+ZEROS_BITWIDTH], {LINE_TO_RAM_ADDRESS_LEFT_SHIFT{1'b0}}
   };
 
-  reg burst_is_reading;  // set if in burst read operation
+  reg burst_is_reading;  // true if in burst read operation
   reg [31:0] burst_data_in[COLUMN_COUNT];
-
-  reg burst_is_writing;  // set if in burst write operation
-  reg [3:0] burst_tag_write_enable;
   reg [3:0] burst_write_enable[COLUMN_COUNT];
+  reg [3:0] burst_tag_write_enable;
+
+  reg burst_is_writing;  // true if in burst write operation
 
   wire [31:0] cached_tag_and_flags;
-  reg [3:0] tag_write_enable;
-  reg [31:0] tag_data_in;
+  reg [3:0] tag_write_enable;  // true when cache hit write to set line dirty
+  reg [31:0] tag_data_in;  // tag and flags written when cache hit write
+
+  assign br_data_mask = 0;  // writing whole cache lines
 
   BESDPB #(
       .ADDRESS_BITWIDTH(LINE_IX_BITWIDTH)
@@ -128,21 +128,20 @@ module Cache #(
   wire [TAG_BITWIDTH-1:0] cached_tag = cached_tag_and_flags[TAG_BITWIDTH-1:0];
 
   // starting address in burst RAM for the cached line
-  wire [BURST_RAM_DEPTH_BITWIDTH-1:0] cached_line_address = {
+  wire [RAM_DEPTH_BITWIDTH-1:0] cached_line_address = {
     {cached_tag, line_ix}, {LINE_TO_RAM_ADDRESS_LEFT_SHIFT{1'b0}}
   };
 
   wire cache_line_hit = line_valid && address_tag == cached_tag;
 
+  // counts minimum cycles between commands
   reg [5:0] command_delay_interval_counter;
 
   assign busy = !cache_line_hit || command_delay_interval_counter != 0;
 
-  // assign led  = cache_line_hit;
-
   // 8 instances of byte enabled semi dual port RAM blocks
-  // 'data_in' connected either to the input if a cache hit write or to the state machine
-  // that first loads a cache line
+  // 'data_in' connected either to the input, if a cache hit write, 
+  // or to the state machine that loads a cache line
   reg [31:0] column_data_in[COLUMN_COUNT];
   reg [3:0] column_write_enable[COLUMN_COUNT];
   wire [31:0] column_data_out[COLUMN_COUNT];
@@ -162,6 +161,7 @@ module Cache #(
   endgenerate
 
   always_comb begin
+    // select data from requested column
     data_out = column_data_out[column_ix];
     data_out_ready = write_enable ? 0 : cache_line_hit;
 
@@ -182,7 +182,7 @@ module Cache #(
         column_write_enable[i] = burst_write_enable[i];
       end
       // write tag of the fetched cache line when burst is finished reading
-      // in the data for the line
+      // the line
       tag_write_enable = burst_tag_write_enable;
       tag_data_in = {1'b0, 1'b1, address_tag};
       // note: {dirty, valid, upper address bits}
@@ -238,12 +238,12 @@ module Cache #(
       for (int i = 0; i < COLUMN_COUNT; i++) begin
         burst_write_enable[i] <= 0;
       end
-      br_data_mask <= 0;
       burst_is_reading <= 0;
       burst_is_writing <= 0;
       command_delay_interval_counter <= 0;
       state <= STATE_IDLE;
     end else begin
+      // count down command interval
       if (command_delay_interval_counter != 0) begin
 `ifdef DBG
         $display("@(c) command delay interval counter: %0d", command_delay_interval_counter);
@@ -260,36 +260,25 @@ module Cache #(
             $display("@(c) cache miss address 0x%h  line: %0d  write mask: %b", address, line_ix,
                      write_enable);
 `endif
-            if (write_enable) begin
+            if (write_enable && line_dirty) begin
 `ifdef DBG
-              $display("@(c) write  (line dirty: %0d)", line_dirty);
+              $display("@(c) line %0d dirty, evict to RAM address 0x%h", line_ix,
+                       cached_line_address);
+              $display("@(c) write line (1): 0x%h%h", column_data_out[0], column_data_out[1]);
 `endif
-              if (line_dirty) begin
+              br_cmd <= 1;  // command write
+              br_addr <= cached_line_address;
+              br_wr_data[31:0] <= column_data_out[0];
+              br_wr_data[63:32] <= column_data_out[1];
+              br_cmd_en <= 1;
+              command_delay_interval_counter <= COMMAND_DELAY_INTERVAL;
+              burst_is_writing <= 1;
+              state <= STATE_WRITE_1;
+            end else begin  // not (write_enable && line_dirty)
 `ifdef DBG
-                $display("@(c) line dirty, evict to RAM address 0x%h", cached_line_address);
-                $display("@(c) write line (1): 0x%h%h", column_data_out[0], column_data_out[1]);
-`endif
-                br_cmd <= 1;  // command write
-                br_addr <= cached_line_address;
-                br_wr_data[31:0] <= column_data_out[0];
-                br_wr_data[63:32] <= column_data_out[1];
-                br_cmd_en <= 1;
-                command_delay_interval_counter <= COMMAND_DELAY_INTERVAL;
-                burst_is_writing <= 1;
-                state <= STATE_WRITE_1;
-              end else begin
-`ifdef DBG
-                $display("@(c) line not dirty, read line from RAM address 0x%h", burst_line_address);
-`endif
-                br_cmd <= 0;  // command read
-                br_addr <= burst_line_address;
-                br_cmd_en <= 1;
-                command_delay_interval_counter <= COMMAND_DELAY_INTERVAL;
-                burst_is_reading <= 1;
-                state <= STATE_READ_WAIT_FOR_DATA_READY;
+              if (write_enable && !line_dirty) begin
+                $display("@(c) line %0d not dirty", line_ix);
               end
-            end else begin  // not (write_enable)
-`ifdef DBG
               $display("@(c) read line from RAM address 0x%h", burst_line_address);
 `endif
               br_cmd <= 0;  // command read
@@ -304,9 +293,7 @@ module Cache #(
 
         STATE_READ_WAIT_FOR_DATA_READY: begin
           br_cmd_en <= 0;
-          led <= 0;
           if (br_rd_data_valid) begin
-            led <= 1;
             // first data has arrived
 `ifdef DBG
             $display("@(c) read line (1): 0x%h", br_rd_data);
@@ -381,7 +368,7 @@ module Cache #(
 `ifdef DBG
           $display("@(c) write line (2): 0x%h%h", column_data_out[2], column_data_out[3]);
 `endif
-          br_cmd_en <= 0;
+          br_cmd_en <= 0; // hold command enable only one cycle
           br_wr_data[31:0] <= column_data_out[2];
           br_wr_data[63:32] <= column_data_out[3];
           state <= STATE_WRITE_2;

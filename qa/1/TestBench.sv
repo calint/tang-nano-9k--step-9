@@ -63,8 +63,8 @@ module TestBench;
 
   Cache #(
       .LINE_IX_BITWIDTH(1),
-      .BURST_RAM_DEPTH_BITWIDTH(BURST_RAM_DEPTH_BITWIDTH),
-      .RAM_ADDRESSING(3) // 64 bit words
+      .RAM_DEPTH_BITWIDTH(BURST_RAM_DEPTH_BITWIDTH),
+      .RAM_ADDRESSING_MODE(3) // 64 bit words
   ) cache (
       .clk(clkout),
       .rst(!sys_rst_n || !lock || !br_init_calib),

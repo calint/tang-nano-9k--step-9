@@ -90,10 +90,9 @@ module Top (
   wire cache_busy;
 
   Cache #(
-      // .LINE_IX_BITWIDTH(6),  // 2 KB cache
       .LINE_IX_BITWIDTH(6),  // 2 KB cache
-      .BURST_RAM_DEPTH_BITWIDTH(BURST_RAM_DEPTH_BITWIDTH),
-      .RAM_ADDRESSING(0)  // addressing 8 bit words
+      .RAM_DEPTH_BITWIDTH(BURST_RAM_DEPTH_BITWIDTH),
+      .RAM_ADDRESSING_MODE(0)  // addressing 8 bit words
   ) cache (
       // .rst(!sys_rst_n || !br_init_calib),
       .rst(!sys_rst_n || !rpll_lock || !br_init_calib),
@@ -105,7 +104,6 @@ module Top (
       .data_out(cache_data_out),
       .data_out_ready(cache_data_out_ready),
       .busy(cache_busy),
-      .led(led[5]),
 
       // burst ram wiring; prefix 'br_'
       .br_cmd(br_cmd),
@@ -117,9 +115,10 @@ module Top (
       .br_rd_data_valid(br_rd_data_valid)
   );
 
+  // assign led[5] = ~cache_busy;
+
   // ----------------------------------------------------------
-  // localparam STARTUP_WAIT = 1_000_000;
-  localparam STARTUP_WAIT = 10;
+  localparam STARTUP_WAIT = 1_000_000;
   localparam FLASH_TRANSFER_BYTES_NUM = 32'h0020_0000;
 
   reg [31:0] cache_address_next;
@@ -157,7 +156,7 @@ module Top (
       cache_address_next <= 0;
       clock_cycle <= 0;
       counter <= 0;
-      led[4:0] <= 4'b1111;
+      led[4:0] <= 5'b11111;
       state <= STATE_INIT_POWER;
     end else begin
       clock_cycle = clock_cycle + 1;
@@ -208,17 +207,18 @@ module Top (
         end
 
         STATE_READ_DATA: begin
-          led[3:0] <= 4'b1110;
           if (!counter[0]) begin
             flash_clk <= 0;
             counter   <= counter + 1;
             if (counter[3:0] == 0 && counter > 0) begin
               // every 16 clock ticks (8 bit * 2)
               data_in[current_byte_num] <= current_byte_out;
-              current_byte_num <= current_byte_num + 1;
-              if (current_byte_num == 3) begin
-                state <= STATE_START_WRITE_TO_CACHE;
-              end
+              led[5:0] <= current_byte_out[7:2];
+              state <= STATE_CACHE_TEST_FAIL;
+              // current_byte_num <= current_byte_num + 1;
+              // if (current_byte_num == 3) begin
+              //   state <= STATE_START_WRITE_TO_CACHE;
+              // end
             end
           end else begin
             flash_clk <= 1;
@@ -236,17 +236,13 @@ module Top (
         end
 
         STATE_WRITE_TO_CACHE: begin
-          // if (cache_address == 32'h0000_0020) led[4] <= 0;
-          led[3:0] <= 4'b1101;
           if (!cache_busy) begin
             cache_write_enable <= 0;
             current_byte_num   <= 0;
             if (cache_address < FLASH_TRANSFER_BYTES_NUM) begin
-              led[4] <= 1;
-              state  <= STATE_READ_DATA;
+              state <= STATE_READ_DATA;
             end else begin
-              led[4] <= 0;
-              state  <= STATE_TRANSFER_DONE;
+              state <= STATE_TRANSFER_DONE;
             end
           end
         end
@@ -258,28 +254,26 @@ module Top (
 
         STATE_CACHE_TEST_1: begin
           if (!cache_busy) begin
-            // cache_address = 0;
-            cache_address = 4;
+            cache_address = 0;
+            // cache_address = 4;
             cache_write_enable <= 0;
             state <= STATE_CACHE_TEST_2;
           end
         end
 
         STATE_CACHE_TEST_2: begin
-          led[3:0] <= 4'b0000;
           if (!cache_busy) begin
-            led[3:0] <= 4'b1100;
-            // if (cache_data_out == 32'h64636261) begin
-            if (cache_data_out == 32'h68676665) begin
-              led[3:0] <= 4'b1111;
+            if (cache_data_out == 32'h64636261) begin
+              // if (cache_data_out == 32'h68676665) begin
+              // led[4] <= 1'b0;
             end else begin
+              // led[3:0] <= cache_data_out[7:4];
               state <= STATE_CACHE_TEST_FAIL;
             end
           end
         end
 
         STATE_CACHE_TEST_FAIL: begin
-          led[4:0] <= 5'b00000;
         end
 
       endcase
