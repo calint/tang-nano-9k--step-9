@@ -21,7 +21,6 @@ iverilog -g2005-sv -Winfloop -pfileline=1 -o iverilog.vvp -s TestBench TestBench
     $SRCPTH/BESDPB.sv \
     $SRCPTH/Cache.sv \
     $SRCPTH/BurstRAM.sv \
-    $SRCPTH/Flash.sv \
     $SRCPTH/Top.sv
 
 vvp iverilog.vvp
