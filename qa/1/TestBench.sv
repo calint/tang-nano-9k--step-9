@@ -64,7 +64,7 @@ module TestBench;
   Cache #(
       .LINE_IX_BITWIDTH(1),
       .RAM_DEPTH_BITWIDTH(BURST_RAM_DEPTH_BITWIDTH),
-      .RAM_ADDRESSING_MODE(3) // 64 bit words
+      .RAM_ADDRESSING_MODE(3)  // 64 bit words
   ) cache (
       .clk(clkout),
       .rst(!sys_rst_n || !lock || !br_init_calib),
@@ -217,6 +217,25 @@ module TestBench;
 
     if (data_out == 32'h1b2d3f42 && data_out_ready) $display("Test 11 passed");
     else $display("Test 11 FAILED");
+
+    while (busy) #clk_tk;
+    address <= 0;
+    data_in <= 32'h31323334;
+    write_enable <= 4'b1111;
+    #clk_tk;
+
+    if (busy) $display("Test 12 passed");
+    else $display("Test 12 FAILED");
+
+    while (busy) #clk_tk;
+    write_enable <= 0;
+    #clk_tk;
+
+    if (data_out_ready) $display("Test 13 passed");
+    else $display("Test 13 FAILED");
+
+    if (data_out == 32'h31323334) $display("Test 14 passed");
+    else $display("Test 14 FAILED");
 
     #clk_tk;
     #clk_tk;

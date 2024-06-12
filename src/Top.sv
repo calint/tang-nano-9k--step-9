@@ -104,6 +104,7 @@ module Top (
       .data_out(cache_data_out),
       .data_out_ready(cache_data_out_ready),
       .busy(cache_busy),
+      .led(led[5]),
 
       // burst ram wiring; prefix 'br_'
       .br_cmd(br_cmd),
@@ -119,7 +120,8 @@ module Top (
 
   // ----------------------------------------------------------
   localparam STARTUP_WAIT = 1_000_000;
-  localparam FLASH_TRANSFER_BYTES_NUM = 32'h0020_0000;
+  // localparam FLASH_TRANSFER_BYTES_NUM = 32'h0020_0000;
+  localparam FLASH_TRANSFER_BYTES_NUM = 32'h0000_0010;
 
   reg [31:0] cache_address_next;
   reg [7:0] current_byte_out = 0;
@@ -154,9 +156,10 @@ module Top (
       flash_cs <= 1;
       cache_address <= 0;
       cache_address_next <= 0;
+      cache_write_enable <= 0;
       clock_cycle <= 0;
       counter <= 0;
-      led[5:0] <= 6'b11_1111;
+      led[4:0] <= 6'b11_1111;
       state <= STATE_INIT_POWER;
     end else begin
       clock_cycle = clock_cycle + 1;
@@ -254,15 +257,14 @@ module Top (
         STATE_CACHE_TEST_1: begin
           if (!cache_busy) begin
             cache_address = 0;
-            // cache_address = 4;
             cache_write_enable <= 0;
             state <= STATE_CACHE_TEST_2;
           end
         end
 
         STATE_CACHE_TEST_2: begin
-          if (!cache_busy) begin
-            led   <= ~cache_data_out;
+          if (!cache_data_out_ready) begin
+            led[4:0] <= ~cache_data_out;
             // if (cache_data_out == 32'h34_33_32_31) begin
             //   led[5] <= 1'b0;
             // end else begin

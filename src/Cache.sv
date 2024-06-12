@@ -44,6 +44,8 @@ module Cache #(
     // asserted when busy reading / writing cache lines
     output wire busy,
 
+    output reg led,
+
     // burst RAM wiring; prefix 'br_'
     output reg br_cmd,  // 0: read, 1: write
     output reg br_cmd_en,  // 1: cmd and addr is valid
@@ -164,6 +166,8 @@ module Cache #(
     // select data from requested column
     data_out = column_data_out[column_ix];
     data_out_ready = write_enable ? 0 : cache_line_hit;
+
+    led = ~cache_line_hit;
 
     // if it is a burst read of a cache line connect the 'write_enable[x]' to
     // the the state machine 'burst_write_enable[x]' register
@@ -368,7 +372,7 @@ module Cache #(
 `ifdef DBG
           $display("@(c) write line (2): 0x%h%h", column_data_out[2], column_data_out[3]);
 `endif
-          br_cmd_en <= 0; // hold command enable only one cycle
+          br_cmd_en <= 0;  // hold command enable only one cycle
           br_wr_data[31:0] <= column_data_out[2];
           br_wr_data[63:32] <= column_data_out[3];
           state <= STATE_WRITE_2;
