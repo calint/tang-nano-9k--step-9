@@ -228,14 +228,15 @@ module TestBench;
     else $display("Test 12 FAILED");
 
     while (busy) #clk_tk;
+    address <= 8;
     write_enable <= 0;
     #clk_tk;
 
     if (data_out_ready) $display("Test 13 passed");
     else $display("Test 13 FAILED");
 
-    if (data_out == 32'h31323334) $display("Test 14 passed");
-    else $display("Test 14 FAILED");
+    if (data_out == 32'hfeef8765 && data_out_ready) $display("Test 9 passed");
+    else $display("Test 9 FAILED");
 
     #clk_tk;
     #clk_tk;

@@ -167,8 +167,6 @@ module Cache #(
     data_out = column_data_out[column_ix];
     data_out_ready = write_enable ? 0 : cache_line_hit;
 
-    led = ~cache_line_hit;
-
     // if it is a burst read of a cache line connect the 'write_enable[x]' to
     // the the state machine 'burst_write_enable[x]' register
     for (int i = 0; i < COLUMN_COUNT; i++) begin

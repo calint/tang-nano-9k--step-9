@@ -121,11 +121,11 @@ module Top (
   // ----------------------------------------------------------
   localparam STARTUP_WAIT = 1_000_000;
   // localparam FLASH_TRANSFER_BYTES_NUM = 32'h0020_0000;
-  localparam FLASH_TRANSFER_BYTES_NUM = 32'h0000_0010;
+  localparam FLASH_TRANSFER_BYTES_NUM = 32'h0000_0004;
 
   reg [31:0] cache_address_next;
-  reg [7:0] current_byte_out = 0;
-  reg [7:0] current_byte_num = 0;
+  reg [7:0] current_byte_out;
+  reg [7:0] current_byte_num;
   reg [7:0] data_in[4];
 
   localparam STATE_INIT_POWER = 8'd0;
@@ -139,6 +139,7 @@ module Top (
   localparam STATE_CACHE_TEST_1 = 8'd8;
   localparam STATE_CACHE_TEST_2 = 8'd9;
   localparam STATE_CACHE_TEST_FAIL = 8'd10;
+  localparam STATE_X = 8'd11;
 
   reg [23:0] data_to_send = 0;
   reg [ 4:0] bits_to_send = 0;
@@ -159,6 +160,8 @@ module Top (
       cache_write_enable <= 0;
       clock_cycle <= 0;
       counter <= 0;
+      current_byte_num <= 0;
+      current_byte_out <= 0;
       led[4:0] <= 6'b11_1111;
       state <= STATE_INIT_POWER;
     end else begin
@@ -239,13 +242,17 @@ module Top (
 
         STATE_WRITE_TO_CACHE: begin
           if (!cache_busy) begin
-            cache_write_enable <= 0;
-            current_byte_num   <= 0;
-            if (cache_address < FLASH_TRANSFER_BYTES_NUM) begin
-              state <= STATE_READ_DATA;
-            end else begin
-              state <= STATE_TRANSFER_DONE;
-            end
+            state <= STATE_X;
+          end
+        end
+
+        STATE_X: begin
+          cache_write_enable <= 0;
+          current_byte_num   <= 0;
+          if (cache_address_next < FLASH_TRANSFER_BYTES_NUM) begin
+            state <= STATE_READ_DATA;
+          end else begin
+            state <= STATE_TRANSFER_DONE;
           end
         end
 
@@ -263,7 +270,7 @@ module Top (
         end
 
         STATE_CACHE_TEST_2: begin
-          if (!cache_data_out_ready) begin
+          if (cache_data_out_ready) begin
             led[4:0] <= ~cache_data_out;
             // if (cache_data_out == 32'h34_33_32_31) begin
             //   led[5] <= 1'b0;
