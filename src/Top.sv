@@ -135,11 +135,9 @@ module Top (
   localparam STATE_READ_DATA = 8'd4;
   localparam STATE_START_WRITE_TO_CACHE = 8'd5;
   localparam STATE_WRITE_TO_CACHE = 8'd6;
-  localparam STATE_TRANSFER_DONE = 8'd7;
   localparam STATE_CACHE_TEST_1 = 8'd8;
   localparam STATE_CACHE_TEST_2 = 8'd9;
   localparam STATE_CACHE_TEST_FAIL = 8'd10;
-  localparam STATE_X = 8'd11;
 
   reg [23:0] data_to_send = 0;
   reg [ 4:0] bits_to_send = 0;
