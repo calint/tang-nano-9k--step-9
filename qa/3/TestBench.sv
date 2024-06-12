@@ -130,6 +130,19 @@ module TestBench;
     if (data_out == 2) $display("Test 2 passed");
     else $display("Test 2 FAILED");
 
+    address <= 4;
+    data_in <= 32'habcd_1234;
+    write_enable <= 4'b1111;
+    #clk_tk;
+    address <= 4;
+    write_enable <= 0;
+    #clk_tk;
+    if (data_out_ready) $display("Test 3 passed");
+    else $display("Test 3 FAILED");
+    if (data_out == 32'habcd_1234) $display("Test 4 passed");
+    else $display("Test 4 FAILED");
+
+
     $finish;
   end
 
