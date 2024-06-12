@@ -156,7 +156,7 @@ module Top (
       cache_address_next <= 0;
       clock_cycle <= 0;
       counter <= 0;
-      led[4:0] <= 5'b11111;
+      led[5:0] <= 6'b11_1111;
       state <= STATE_INIT_POWER;
     end else begin
       clock_cycle = clock_cycle + 1;
@@ -190,7 +190,7 @@ module Top (
         end
 
         STATE_SEND: begin
-          if (!counter[0]) begin
+          if (counter == 0) begin
             // at clock to low
             flash_clk <= 0;
             flash_mosi <= data_to_send[23];
@@ -213,12 +213,11 @@ module Top (
             if (counter[3:0] == 0 && counter > 0) begin
               // every 16 clock ticks (8 bit * 2)
               data_in[current_byte_num] <= current_byte_out;
-              led[5:0] <= current_byte_out[7:2];
-              state <= STATE_CACHE_TEST_FAIL;
-              // current_byte_num <= current_byte_num + 1;
-              // if (current_byte_num == 3) begin
-              //   state <= STATE_START_WRITE_TO_CACHE;
-              // end
+              // led[5:0] <= ~current_byte_out[7:0];
+              current_byte_num <= current_byte_num + 1;
+              if (current_byte_num == 3) begin
+                state <= STATE_START_WRITE_TO_CACHE;
+              end
             end
           end else begin
             flash_clk <= 1;
@@ -263,13 +262,13 @@ module Top (
 
         STATE_CACHE_TEST_2: begin
           if (!cache_busy) begin
-            if (cache_data_out == 32'h64636261) begin
-              // if (cache_data_out == 32'h68676665) begin
-              // led[4] <= 1'b0;
-            end else begin
-              // led[3:0] <= cache_data_out[7:4];
-              state <= STATE_CACHE_TEST_FAIL;
-            end
+            led   <= ~cache_data_out;
+            // if (cache_data_out == 32'h34_33_32_31) begin
+            //   led[5] <= 1'b0;
+            // end else begin
+            //   led[0] <= 1'b0;
+            // end
+            state <= STATE_CACHE_TEST_FAIL;
           end
         end
 

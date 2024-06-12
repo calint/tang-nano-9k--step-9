@@ -90,25 +90,45 @@ module TestBench;
     $dumpfile("log.vcd");
     $dumpvars(0, TestBench);
 
-    address <= 0;
-    address_next <= 4;
-
     #clk_tk;
     sys_rst_n <= 1;
 
     // wait for burst RAM to initiate
     while (br_busy || !lock) #clk_tk;
 
+
+    address <= 0;
+    address_next <= 0;
+    #clk_tk;
+
     // write
     for (int i = 0; i < 2 ** RAM_DEPTH_BITWIDTH; i = i + 1) begin
       // $display("address: %h", address);
-      while (busy) #clk_tk;
       address <= address_next;
       address_next <= address_next + 4;
-      data_in = 32'h01234567;
+      data_in = i;
       write_enable <= 4'b1111;
       #clk_tk;
+      while (busy) #clk_tk;
     end
+
+    // for (int i = 0; i < 16; i = i + 1) begin
+    //   $display("%h: %h", i, burst_ram.data[i]);
+    // end
+
+    address <= 4;
+    write_enable <= 0;
+    #clk_tk;
+    while (!data_out_ready) #clk_tk;
+    if (data_out == 1) $display("Test 1 passed");
+    else $display("Test 1 FAILED");
+
+    address <= 8;
+    write_enable <= 0;
+    #clk_tk;
+    while (!data_out_ready) #clk_tk;
+    if (data_out == 2) $display("Test 2 passed");
+    else $display("Test 2 FAILED");
 
     $finish;
   end
