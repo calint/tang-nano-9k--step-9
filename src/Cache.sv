@@ -44,8 +44,6 @@ module Cache #(
     // asserted when busy reading / writing cache lines
     output wire busy,
 
-    output wire led,
-
     // burst RAM wiring; prefix 'br_'
     output reg br_cmd,  // 0: read, 1: write
     output reg br_cmd_en,  // 1: cmd and addr is valid
@@ -140,8 +138,6 @@ module Cache #(
   reg [5:0] command_delay_interval_counter;
 
   assign busy = !cache_line_hit || command_delay_interval_counter != 0;
-
-  assign led = ~busy;
 
   // 8 instances of byte enabled semi dual port RAM blocks
   // 'data_in' connected either to the input, if a cache hit write, 
