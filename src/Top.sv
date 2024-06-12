@@ -137,7 +137,7 @@ module Top (
   localparam STATE_WRITE_TO_CACHE = 8'd6;
   localparam STATE_CACHE_TEST_1 = 8'd8;
   localparam STATE_CACHE_TEST_2 = 8'd9;
-  localparam STATE_CACHE_TEST_FAIL = 8'd10;
+  localparam STATE_DONE = 8'd10;
 
   reg [23:0] data_to_send = 0;
   reg [ 4:0] bits_to_send = 0;
@@ -271,11 +271,11 @@ module Top (
             end else begin
               led[0] <= 1'b0;
             end
-            state <= STATE_CACHE_TEST_FAIL;
+            state <= STATE_DONE;
           end
         end
 
-        STATE_CACHE_TEST_FAIL: begin
+        STATE_DONE: begin
         end
 
       endcase
